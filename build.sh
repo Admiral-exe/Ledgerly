@@ -1,29 +1,28 @@
 #!/bin/bash
 set -e
 
-echo "=== Ledgerly Vercel Build Step ==="
-
-# Check if Flutter SDK is available
+echo "=== [1/4] Setting up Flutter SDK on Vercel ==="
 if [ ! -d "flutter" ]; then
-  echo "Downloading Flutter SDK (stable channel)..."
+  echo "Cloning Flutter SDK (stable channel)..."
   git clone https://github.com/flutter/flutter.git --depth 1 -b stable flutter
 else
-  echo "Flutter directory exists, using cached SDK..."
+  echo "Using cached Flutter SDK..."
 fi
 
-# Add Flutter to PATH
+# Export Flutter to PATH
 export PATH="$PATH:`pwd`/flutter/bin"
 
-echo "Checking Flutter version..."
+echo "=== [2/4] Flutter Environment Check ==="
 flutter --version
-
-echo "Enabling Flutter Web..."
 flutter config --enable-web
 
-echo "Getting dependencies..."
+echo "=== [3/4] Fetching Packages ==="
 flutter pub get
 
-echo "Building release bundle for Web..."
+echo "=== [4/4] Building Flutter Web Release ==="
 flutter build web --release
 
-echo "=== Build Complete! Output directory: build/web ==="
+echo "=== Build Verified: Contents of build/web ==="
+ls -la build/web
+
+echo "=== Vercel Build Completed Successfully! ==="
