@@ -95,7 +95,7 @@ class ProfileScreen extends ConsumerWidget {
 
               const SizedBox(height: 28),
 
-              // Settings Card with rows and chevrons
+              // Settings Card with interactive rows
               Container(
                 decoration: BoxDecoration(
                   color: Colors.white,
@@ -115,11 +115,7 @@ class ProfileScreen extends ConsumerWidget {
                       context,
                       icon: Icons.person_outline_rounded,
                       title: 'Account',
-                      onTap: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Account Settings')),
-                        );
-                      },
+                      onTap: () => _showAccountModal(context, user),
                     ),
                     const Divider(color: AppColors.borderLight, height: 1, indent: 56),
                     _buildSettingsTile(
@@ -140,22 +136,14 @@ class ProfileScreen extends ConsumerWidget {
                       context,
                       icon: Icons.shield_outlined,
                       title: 'Security',
-                      onTap: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Security & Biometrics: Enabled')),
-                        );
-                      },
+                      onTap: () => _showSecurityModal(context),
                     ),
                     const Divider(color: AppColors.borderLight, height: 1, indent: 56),
                     _buildSettingsTile(
                       context,
                       icon: Icons.help_outline_rounded,
-                      title: 'Help',
-                      onTap: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Help & 24/7 FinTech Support: Active')),
-                        );
-                      },
+                      title: 'Help & Support',
+                      onTap: () => _showHelpModal(context),
                     ),
                   ],
                 ),
@@ -193,7 +181,7 @@ class ProfileScreen extends ConsumerWidget {
 
               // Version Footer
               Text(
-                'LEDGERLY V2.4.1',
+                'LEDGERLY V2.4.1 • BUILD 2026',
                 style: AppTypography.labelUppercase.copyWith(
                   color: AppColors.textMuted,
                   letterSpacing: 1.5,
@@ -232,21 +220,168 @@ class ProfileScreen extends ConsumerWidget {
     );
   }
 
+  void _showAccountModal(BuildContext context, dynamic user) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(color: AppColors.borderLight, borderRadius: BorderRadius.circular(4)),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Text('Account Information', style: AppTypography.headingSmall),
+            const SizedBox(height: 16),
+            _buildInfoRow('Full Name', user?.fullName ?? 'Rahul Sharma'),
+            const SizedBox(height: 12),
+            _buildInfoRow('Email Address', user?.email ?? 'sharahul@ledgerly.in'),
+            const SizedBox(height: 12),
+            _buildInfoRow('Phone', user?.phone ?? '+91 98765 43210'),
+            const SizedBox(height: 12),
+            _buildInfoRow('Account Tier', 'Ledgerly Member'),
+            const SizedBox(height: 24),
+            BouncingButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              color: Colors.black,
+              height: 48,
+              borderRadius: BorderRadius.circular(14),
+              child: const Text('Close', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showSecurityModal(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(color: AppColors.borderLight, borderRadius: BorderRadius.circular(4)),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Text('Security & Privacy', style: AppTypography.headingSmall),
+            const SizedBox(height: 16),
+            _buildInfoRow('Biometrics (Face ID / Touch ID)', 'Enabled'),
+            const SizedBox(height: 12),
+            _buildInfoRow('Two-Factor Authentication', 'Active (SMS)'),
+            const SizedBox(height: 12),
+            _buildInfoRow('Data Encryption', 'AES-256 Bit'),
+            const SizedBox(height: 24),
+            BouncingButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              color: Colors.black,
+              height: 48,
+              borderRadius: BorderRadius.circular(14),
+              child: const Text('Done', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showHelpModal(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(color: AppColors.borderLight, borderRadius: BorderRadius.circular(4)),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Text('Help & Support', style: AppTypography.headingSmall),
+            const SizedBox(height: 14),
+            const Text(
+              'Need assistance with your budget, transactions, or bank connection?',
+              style: TextStyle(fontSize: 14, color: AppColors.textSecondary, height: 1.4),
+            ),
+            const SizedBox(height: 16),
+            _buildInfoRow('Support Email', 'support@ledgerly.in'),
+            const SizedBox(height: 12),
+            _buildInfoRow('Response Time', '< 2 hours'),
+            const SizedBox(height: 24),
+            BouncingButton(
+              onPressed: () {
+                Navigator.of(ctx).pop();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Support request sent! Our team will respond shortly.'),
+                    backgroundColor: Color(0xFF047857),
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+              },
+              color: AppColors.primaryNavy,
+              height: 48,
+              borderRadius: BorderRadius.circular(14),
+              child: const Text('Contact Support', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInfoRow(String label, String value) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label, style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+        Text(value, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+      ],
+    );
+  }
+
   void _showLogoutConfirmation(BuildContext context, WidgetRef ref) {
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (dialogCtx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         title: const Text('Logout', style: TextStyle(fontWeight: FontWeight.w700)),
         content: const Text('Are you sure you want to log out of Ledgerly?'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
+            onPressed: () => Navigator.of(dialogCtx).pop(),
             child: const Text('Cancel'),
           ),
           TextButton(
             onPressed: () {
-              Navigator.of(ctx).pop();
+              Navigator.of(dialogCtx).pop();
               ref.read(authProvider.notifier).logout();
               Navigator.of(context).pushAndRemoveUntil(
                 SmoothPageRoute(

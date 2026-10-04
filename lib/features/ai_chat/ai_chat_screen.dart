@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
+import '../../core/utils/formatters.dart';
 import '../../core/widgets/bouncing_button.dart';
+import '../../state/budget_state.dart';
+import '../../state/transaction_state.dart';
 
 class ChatMessage {
   final String text;
@@ -18,14 +22,14 @@ class ChatMessage {
   });
 }
 
-class AIChatScreen extends StatefulWidget {
+class AIChatScreen extends ConsumerStatefulWidget {
   const AIChatScreen({super.key});
 
   @override
-  State<AIChatScreen> createState() => _AIChatScreenState();
+  ConsumerState<AIChatScreen> createState() => _AIChatScreenState();
 }
 
-class _AIChatScreenState extends State<AIChatScreen> {
+class _AIChatScreenState extends ConsumerState<AIChatScreen> {
   final TextEditingController _inputController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
 
@@ -60,6 +64,9 @@ class _AIChatScreenState extends State<AIChatScreen> {
   void _sendMessage(String text) {
     if (text.trim().isEmpty) return;
 
+    final budget = ref.read(budgetProvider);
+    final monthlySpending = ref.read(monthlySpendingProvider);
+
     setState(() {
       _messages.add(
         ChatMessage(
@@ -73,19 +80,42 @@ class _AIChatScreenState extends State<AIChatScreen> {
     _inputController.clear();
     _scrollToBottom();
 
-    // Simulated Smart FinTech Assistant Response
-    Future.delayed(const Duration(milliseconds: 600), () {
+    // Contextual FinTech Assistant Response using real state
+    Future.delayed(const Duration(milliseconds: 500), () {
       if (!mounted) return;
-      String response = "Based on your April spending patterns, you've used 65% of your ₹50,000 budget with 14 days remaining.";
-      String? insight = "You are on track to save ₹6,200 this month if current trajectory continues!";
+
+      final totalSpent = monthlySpending > 0 ? monthlySpending : budget.totalSpent;
+      final remaining = (budget.totalBudget - totalSpent).clamp(0.0, double.infinity);
+      final percentUsed = budget.totalBudget > 0 ? ((totalSpent / budget.totalBudget) * 100).round() : 0;
+
+      final sorted = List.of(budget.categories)..sort((a, b) => b.spent.compareTo(a.spent));
+      final topCat = sorted.isNotEmpty ? sorted.first : null;
+
+      String response = "Based on your ${budget.month} spending patterns, you have used $percentUsed% of your ${Formatters.currency(budget.totalBudget, showDecimals: false)} budget.";
+      String? insight = "You have ${Formatters.currency(remaining, showDecimals: false)} remaining with safe daily limits.";
 
       final lower = text.toLowerCase();
       if (lower.contains('summarize') || lower.contains('month')) {
-        response = "Total monthly outflow is ₹32,450 across 5 categories. Dining (₹12,450) and Rent (₹15,000) are your largest expenditures.";
-        insight = "Rent is 100% fulfilled. Dining has 17% buffer remaining.";
+        response = "For ${budget.month}, your total outflow is ${Formatters.currency(totalSpent, showDecimals: false)} across ${budget.categories.length} categories. You have ${Formatters.currency(remaining, showDecimals: false)} left.";
+        if (topCat != null) {
+          insight = "${topCat.name} is your highest expense at ${Formatters.currency(topCat.spent, showDecimals: false)} (${(topCat.spent / (totalSpent > 0 ? totalSpent : 1) * 100).round()}% of total).";
+        }
       } else if (lower.contains('budget') || lower.contains('over')) {
-        response = "You are currently within safe limits! Only Housing/Rent reached its exact threshold (₹15,000).";
-        insight = "Bills & Utilities are 93% under budget (₹1,000 spent out of ₹14,000).";
+        if (percentUsed >= 100) {
+          response = "Warning: You have reached 100% of your allocated monthly budget!";
+          insight = "Consider allocating an additional buffer or reviewing non-essential spending.";
+        } else {
+          response = "Good news! You are currently within your target limits at $percentUsed% utilized.";
+          insight = "You have ${Formatters.currency(remaining, showDecimals: false)} buffer remaining for the rest of ${budget.month}.";
+        }
+      } else if (lower.contains('top') || lower.contains('categories')) {
+        if (sorted.length >= 2) {
+          response = "Your top categories are ${sorted[0].name} (${Formatters.currency(sorted[0].spent, showDecimals: false)}) and ${sorted[1].name} (${Formatters.currency(sorted[1].spent, showDecimals: false)}).";
+          insight = "${sorted[0].name} takes up ${(sorted[0].spent / (totalSpent > 0 ? totalSpent : 1) * 100).round()}% of your monthly expenses.";
+        }
+      } else if (lower.contains('save')) {
+        response = "To save an additional ₹5,000 this month, try capping discretionary dining and shopping by 15%.";
+        insight = "Setting a daily limit of ${Formatters.currency((budget.totalBudget - 5000) / 30, showDecimals: false)} will automatically achieve your savings target!";
       }
 
       setState(() {
@@ -106,7 +136,7 @@ class _AIChatScreenState extends State<AIChatScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients) {
         _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent + 120,
+          _scrollController.position.maxScrollExtent + 140,
           duration: const Duration(milliseconds: 300),
           curve: Curves.easeOut,
         );
@@ -208,10 +238,10 @@ class _AIChatScreenState extends State<AIChatScreen> {
                         controller: _inputController,
                         onSubmitted: _sendMessage,
                         decoration: InputDecoration(
-                          hintText: 'Type your question...',
+                          hintText: 'Ask Ledgerly AI about your money...',
                           hintStyle: TextStyle(
                             color: AppColors.textMuted,
-                            fontSize: 15,
+                            fontSize: 14,
                           ),
                           border: InputBorder.none,
                           enabledBorder: InputBorder.none,

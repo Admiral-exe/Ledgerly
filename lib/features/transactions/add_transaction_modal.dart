@@ -6,6 +6,7 @@ import '../../core/utils/formatters.dart';
 import '../../core/widgets/bouncing_button.dart';
 import '../../data/models/transaction_model.dart';
 import '../../state/transaction_state.dart';
+import '../../state/budget_state.dart';
 
 class AddTransactionModal extends ConsumerStatefulWidget {
   const AddTransactionModal({super.key});
@@ -86,6 +87,10 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
               ? _selectedTransferTo
               : null,
         );
+
+    if (_selectedType == TransactionType.expense) {
+      ref.read(budgetProvider.notifier).addExpenseToCategory(_selectedCategory, amount);
+    }
 
     Navigator.of(context).pop();
 

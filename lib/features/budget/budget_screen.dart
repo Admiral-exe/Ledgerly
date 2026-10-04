@@ -12,12 +12,22 @@ import '../../state/budget_state.dart';
 import 'edit_budget_screen.dart';
 import 'category_detail_screen.dart';
 
-class BudgetScreen extends ConsumerWidget {
+class BudgetScreen extends ConsumerStatefulWidget {
   const BudgetScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<BudgetScreen> createState() => _BudgetScreenState();
+}
+
+class _BudgetScreenState extends ConsumerState<BudgetScreen> {
+  bool _showAllCategories = false;
+
+  @override
+  Widget build(BuildContext context) {
     final budget = ref.watch(budgetProvider);
+    final displayedCategories = _showAllCategories
+        ? budget.categories
+        : budget.categories.take(6).toList();
 
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
@@ -37,18 +47,31 @@ class BudgetScreen extends ConsumerWidget {
 
               const SizedBox(height: 16),
 
-              // Month Selector Bar: < [calendar] April 2026 >
+              // Month Selector Bar: < [calendar] April 2026 > (Interactive!)
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(color: AppColors.borderLight),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.02),
+                      blurRadius: 10,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Icon(Icons.chevron_left_rounded, color: AppColors.textPrimary),
+                    IconButton(
+                      icon: const Icon(Icons.chevron_left_rounded, color: AppColors.textPrimary),
+                      onPressed: () {
+                        ref.read(budgetProvider.notifier).previousMonth();
+                      },
+                      splashRadius: 20,
+                    ),
                     Row(
                       children: [
                         const Icon(
@@ -57,15 +80,29 @@ class BudgetScreen extends ConsumerWidget {
                           color: AppColors.accentGreenBright,
                         ),
                         const SizedBox(width: 8),
-                        Text(
-                          budget.month,
-                          style: AppTypography.titleSmall.copyWith(
-                            fontWeight: FontWeight.w700,
+                        AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 220),
+                          transitionBuilder: (child, anim) => FadeTransition(
+                            opacity: anim,
+                            child: ScaleTransition(scale: anim, child: child),
+                          ),
+                          child: Text(
+                            budget.month,
+                            key: ValueKey<String>(budget.month),
+                            style: AppTypography.titleSmall.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
                         ),
                       ],
                     ),
-                    const Icon(Icons.chevron_right_rounded, color: AppColors.textPrimary),
+                    IconButton(
+                      icon: const Icon(Icons.chevron_right_rounded, color: AppColors.textPrimary),
+                      onPressed: () {
+                        ref.read(budgetProvider.notifier).nextMonth();
+                      },
+                      splashRadius: 20,
+                    ),
                   ],
                 ),
               ).animate().fadeIn(delay: 100.ms),
@@ -222,7 +259,7 @@ class BudgetScreen extends ConsumerWidget {
 
               const SizedBox(height: 20),
 
-              // "Edit Budget" Button (Right-aligned or full-width)
+              // "Edit Budget" Button (Right-aligned)
               Align(
                 alignment: Alignment.centerRight,
                 child: BouncingButton(
@@ -257,7 +294,7 @@ class BudgetScreen extends ConsumerWidget {
 
               const SizedBox(height: 24),
 
-              // Category Budgets Header
+              // Category Budgets Header with "View All" toggle
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -267,11 +304,18 @@ class BudgetScreen extends ConsumerWidget {
                       fontWeight: FontWeight.w700,
                     ),
                   ),
-                  Text(
-                    'View All',
-                    style: AppTypography.bodySmall.copyWith(
-                      color: AppColors.accentGreenBright,
-                      fontWeight: FontWeight.w700,
+                  GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        _showAllCategories = !_showAllCategories;
+                      });
+                    },
+                    child: Text(
+                      _showAllCategories ? 'Show Less' : 'View All',
+                      style: AppTypography.bodySmall.copyWith(
+                        color: AppColors.accentGreenBright,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
                 ],
@@ -283,9 +327,9 @@ class BudgetScreen extends ConsumerWidget {
               ListView.builder(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
-                itemCount: budget.categories.length,
+                itemCount: displayedCategories.length,
                 itemBuilder: (context, index) {
-                  final cat = budget.categories[index];
+                  final cat = displayedCategories[index];
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 12),
                     child: BouncingButton(
@@ -296,6 +340,8 @@ class BudgetScreen extends ConsumerWidget {
                               categoryName: cat.name,
                               budgetAmount: cat.allocated,
                               spentAmount: cat.spent,
+                              categoryIcon: cat.icon,
+                              categoryColor: cat.color,
                             ),
                             transitionType: SmoothTransitionType.slideRight,
                           ),
@@ -338,10 +384,12 @@ class BudgetScreen extends ConsumerWidget {
                               ),
                               Text(
                                 '${cat.percentageInt}%',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontWeight: FontWeight.w800,
                                   fontSize: 15,
-                                  color: AppColors.textPrimary,
+                                  color: cat.percentage > 0.95
+                                      ? AppColors.errorRed
+                                      : AppColors.textPrimary,
                                 ),
                               ),
                             ],
@@ -353,7 +401,9 @@ class BudgetScreen extends ConsumerWidget {
                               value: cat.percentage,
                               minHeight: 6,
                               backgroundColor: const Color(0xFFF1F5F9),
-                              valueColor: AlwaysStoppedAnimation<Color>(cat.color),
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                cat.percentage > 0.95 ? AppColors.errorRed : cat.color,
+                              ),
                             ),
                           ),
                         ],
@@ -406,54 +456,136 @@ class BudgetScreen extends ConsumerWidget {
 
   void _showAddCategoryDialog(BuildContext context, WidgetRef ref) {
     final nameController = TextEditingController();
+    final subtitleController = TextEditingController(text: 'Personal Goal');
     final amountController = TextEditingController();
+    IconData selectedIcon = Icons.category_rounded;
+    Color selectedColor = AppColors.catDining;
+
+    final availableIcons = [
+      Icons.category_rounded,
+      Icons.flight_takeoff_rounded,
+      Icons.fitness_center_rounded,
+      Icons.pets_rounded,
+      Icons.coffee_rounded,
+      Icons.school_rounded,
+    ];
+
+    final availableColors = [
+      AppColors.catDining,
+      AppColors.catTravel,
+      AppColors.catRent,
+      AppColors.catShopping,
+      AppColors.catFun,
+      AppColors.catHealth,
+    ];
 
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        title: Text('Add New Category', style: AppTypography.headingSmall),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: nameController,
-              decoration: const InputDecoration(labelText: 'Category Name'),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          title: Text('Add New Category', style: AppTypography.headingSmall),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextField(
+                  controller: nameController,
+                  decoration: const InputDecoration(labelText: 'Category Name (e.g. Fitness)'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: subtitleController,
+                  decoration: const InputDecoration(labelText: 'Subtitle (e.g. Gym & Sports)'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: amountController,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(labelText: 'Budget Amount (₹)'),
+                ),
+                const SizedBox(height: 16),
+                const Text('Choose Icon:', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: availableIcons.map((ic) {
+                    final isSel = selectedIcon == ic;
+                    return GestureDetector(
+                      onTap: () => setDialogState(() => selectedIcon = ic),
+                      child: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: isSel ? AppColors.primaryNavy : const Color(0xFFF1F5F9),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Icon(ic, color: isSel ? Colors.white : AppColors.textPrimary, size: 20),
+                      ),
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 14),
+                const Text('Choose Color:', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: availableColors.map((cl) {
+                    final isSel = selectedColor == cl;
+                    return GestureDetector(
+                      onTap: () => setDialogState(() => selectedColor = cl),
+                      child: Container(
+                        width: 28,
+                        height: 28,
+                        decoration: BoxDecoration(
+                          color: cl,
+                          shape: BoxShape.circle,
+                          border: isSel ? Border.all(color: Colors.black, width: 2.5) : null,
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ],
             ),
-            const SizedBox(height: 14),
-            TextField(
-              controller: amountController,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: 'Budget Amount (₹)'),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Cancel'),
+            ),
+            BouncingButton(
+              onPressed: () {
+                final name = nameController.text.trim();
+                final amount = double.tryParse(amountController.text) ?? 5000.0;
+                final subtitle = subtitleController.text.trim().isNotEmpty
+                    ? subtitleController.text.trim()
+                    : 'Personal Goal';
+
+                if (name.isNotEmpty) {
+                  ref.read(budgetProvider.notifier).addNewCategory(
+                        name: name,
+                        subtitle: subtitle,
+                        allocated: amount,
+                        icon: selectedIcon,
+                        color: selectedColor,
+                      );
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Category "$name" added with ₹$amount budget!'),
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                }
+                Navigator.of(ctx).pop();
+              },
+              width: 100,
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              color: AppColors.primaryNavy,
+              child: const Text('Add', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Cancel'),
-          ),
-          BouncingButton(
-            onPressed: () {
-              final name = nameController.text.trim();
-              final amount = double.tryParse(amountController.text) ?? 5000.0;
-              if (name.isNotEmpty) {
-                ref.read(budgetProvider.notifier).addNewCategory(
-                      name: name,
-                      subtitle: 'Custom Goal',
-                      allocated: amount,
-                      icon: Icons.category_outlined,
-                      color: AppColors.catRent,
-                    );
-              }
-              Navigator.of(ctx).pop();
-            },
-            width: 100,
-            padding: const EdgeInsets.symmetric(vertical: 10),
-            color: AppColors.primaryNavy,
-            child: const Text('Add', style: TextStyle(color: Colors.white)),
-          ),
-        ],
       ),
     );
   }
@@ -466,7 +598,7 @@ class _RadialRingPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final strokeWidth = 14.0;
+    const strokeWidth = 14.0;
     final center = Offset(size.width / 2, size.height / 2);
     final radius = (size.width - strokeWidth) / 2;
 
@@ -479,7 +611,7 @@ class _RadialRingPainter extends CustomPainter {
 
     // Glowing Progress Arc
     final arcPaint = Paint()
-      ..color = const Color(0xFF22C55E)
+      ..color = progress > 0.95 ? const Color(0xFFEF4444) : const Color(0xFF22C55E)
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round
       ..strokeWidth = strokeWidth;
