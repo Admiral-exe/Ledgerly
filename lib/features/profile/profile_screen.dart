@@ -8,6 +8,7 @@ import '../../core/widgets/smooth_page_route.dart';
 import '../../state/auth_state.dart';
 import '../welcome/welcome_screen.dart';
 import '../notifications/notification_screen.dart';
+import '../onboarding/feature_tour_screen.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -144,6 +145,20 @@ class ProfileScreen extends ConsumerWidget {
                       icon: Icons.help_outline_rounded,
                       title: 'Help & Support',
                       onTap: () => _showHelpModal(context),
+                    ),
+                    const Divider(color: AppColors.borderLight, height: 1, indent: 56),
+                    _buildSettingsTile(
+                      context,
+                      icon: Icons.explore_outlined,
+                      title: 'App Feature Tour',
+                      onTap: () {
+                        Navigator.of(context).push(
+                          SmoothPageRoute(
+                            page: const FeatureTourScreen(),
+                            transitionType: SmoothTransitionType.slideUp,
+                          ),
+                        );
+                      },
                     ),
                   ],
                 ),

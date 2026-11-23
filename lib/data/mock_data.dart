@@ -12,8 +12,66 @@ class MockData {
     firstName: 'Rahul',
     lastName: 'Sharma',
     email: 'sharahul@ledgerly.in',
-    phone: '+91 98765 43210',
+    phone: '9876543210',
     avatarUrl: null,
+  );
+
+  /// Clean template with ₹0 spent for new users
+  static final MonthlyBudget cleanMonthlyBudget = MonthlyBudget(
+    month: 'April 2026',
+    totalBudget: 0.0,
+    categories: [
+      CategoryBudget(
+        id: 'cat_food',
+        name: 'Food',
+        subtitle: 'Groceries & Dining',
+        allocated: 0.0,
+        spent: 0.0,
+        recommended: 5000.0,
+        icon: Icons.restaurant_rounded,
+        color: AppColors.catDining,
+      ),
+      CategoryBudget(
+        id: 'cat_travel',
+        name: 'Travel',
+        subtitle: 'Commute & Trips',
+        allocated: 0.0,
+        spent: 0.0,
+        recommended: 3000.0,
+        icon: Icons.directions_car_rounded,
+        color: AppColors.catTravel,
+      ),
+      CategoryBudget(
+        id: 'cat_rent',
+        name: 'Rent',
+        subtitle: 'House & Maintenance',
+        allocated: 0.0,
+        spent: 0.0,
+        recommended: 10000.0,
+        icon: Icons.home_rounded,
+        color: AppColors.catRent,
+      ),
+      CategoryBudget(
+        id: 'cat_shopping',
+        name: 'Shopping',
+        subtitle: 'Apparel & Personal',
+        allocated: 0.0,
+        spent: 0.0,
+        recommended: 4000.0,
+        icon: Icons.shopping_bag_outlined,
+        color: AppColors.catShopping,
+      ),
+      CategoryBudget(
+        id: 'cat_bills',
+        name: 'Bills',
+        subtitle: 'Utilities & Subs',
+        allocated: 0.0,
+        spent: 0.0,
+        recommended: 3000.0,
+        icon: Icons.receipt_long_rounded,
+        color: AppColors.catBills,
+      ),
+    ],
   );
 
   static final MonthlyBudget initialMonthlyBudget = MonthlyBudget(

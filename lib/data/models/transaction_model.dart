@@ -141,6 +141,8 @@ class TransactionModel {
         'transferTo': transferTo,
       };
 
+  Map<String, dynamic> toJson() => toMap();
+
   factory TransactionModel.fromMap(Map<String, dynamic> map) => TransactionModel(
         id: map['id'] ?? '',
         title: map['title'] ?? '',

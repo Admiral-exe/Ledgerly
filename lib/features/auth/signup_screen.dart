@@ -8,6 +8,7 @@ import '../../core/widgets/ledgerly_logo.dart';
 import '../../core/widgets/smooth_page_route.dart';
 import '../../state/auth_state.dart';
 import '../main_scaffold.dart';
+import '../onboarding/feature_tour_screen.dart';
 
 class SignUpScreen extends ConsumerStatefulWidget {
   const SignUpScreen({super.key});
@@ -17,10 +18,10 @@ class SignUpScreen extends ConsumerStatefulWidget {
 }
 
 class _SignUpScreenState extends ConsumerState<SignUpScreen> {
-  final _firstNameController = TextEditingController(text: 'Rahul');
-  final _lastNameController = TextEditingController(text: 'Sharma');
-  final _emailController = TextEditingController(text: 'sharahul@ledgerly.in');
-  final _phoneController = TextEditingController(text: '98765 43210');
+  final _firstNameController = TextEditingController();
+  final _lastNameController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _phoneController = TextEditingController();
   bool _isLoading = false;
 
   @override
@@ -48,6 +49,27 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
       return;
     }
 
+    if (!email.contains('@') || !email.contains('.')) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter a valid email address'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    final digits = phone.replaceAll(RegExp(r'\D'), '');
+    if (digits.length < 10) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter a valid 10-digit mobile number'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
     setState(() => _isLoading = true);
     await ref.read(authProvider.notifier).signUp(
           firstName: first,
@@ -57,7 +79,21 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
         );
     setState(() => _isLoading = false);
 
-    if (mounted) {
+    if (!mounted) return;
+
+    final auth = ref.read(authProvider);
+
+    // If new user registered -> show feature tour (with Skip button)
+    // If test account was entered -> go directly to MainScaffold with demo data
+    if (auth.isNewUser) {
+      Navigator.of(context).pushAndRemoveUntil(
+        SmoothPageRoute(
+          page: const FeatureTourScreen(),
+          transitionType: SmoothTransitionType.fadeThrough,
+        ),
+        (route) => false,
+      );
+    } else {
       Navigator.of(context).pushAndRemoveUntil(
         SmoothPageRoute(
           page: const MainScaffold(),
@@ -113,8 +149,8 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
           children: [
             // Top Section: Navy Header with Logo
             Padding(
-              padding: const EdgeInsets.symmetric(vertical: 24),
-              child: const LedgerlyLogo(size: 60, showBadge: true)
+              padding: const EdgeInsets.symmetric(vertical: 20),
+              child: const LedgerlyLogo(size: 58, showBadge: true)
                   .animate()
                   .fadeIn(duration: 400.ms)
                   .scale(curve: Curves.easeOutBack),
@@ -124,7 +160,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
             Expanded(
               child: Container(
                 width: double.infinity,
-                padding: const EdgeInsets.fromLTRB(28, 30, 28, 24),
+                padding: const EdgeInsets.fromLTRB(28, 24, 28, 20),
                 decoration: const BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.only(
@@ -146,11 +182,11 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                         ),
                       ).animate().fadeIn(duration: 400.ms),
 
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 6),
 
                       // Subtitle
                       Text(
-                        'Create Account with Ledgerly and take control of your finances through smart & efficient management',
+                        'Create an account with Ledgerly and take control of your finances through smart & private management',
                         textAlign: TextAlign.center,
                         style: AppTypography.bodySmall.copyWith(
                           color: AppColors.textSecondary,
@@ -182,12 +218,12 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
 
                       _buildField(
                         controller: _phoneController,
-                        hintText: 'Phone Number',
+                        hintText: 'Phone Number (10 digits)',
                         icon: Icons.phone_outlined,
                         keyboardType: TextInputType.phone,
                       ).animate().fadeIn(delay: 300.ms),
 
-                      const SizedBox(height: 14),
+                      const SizedBox(height: 10),
 
                       // "Create Account" CTA Button
                       BouncingButton(
@@ -199,13 +235,13 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                           'Create Account',
                           style: TextStyle(
                             color: Colors.white,
-                            fontSize: 18,
+                            fontSize: 17,
                             fontWeight: FontWeight.w700,
                           ),
                         ),
                       ).animate().fadeIn(delay: 350.ms),
 
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 16),
 
                       const Divider(color: AppColors.borderLight),
 
@@ -224,7 +260,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                                 style: AppTypography.bodySmall.copyWith(
                                   color: AppColors.textSecondary,
                                 ),
-                                children: [
+                                children: const [
                                   TextSpan(
                                     text: 'login',
                                     style: TextStyle(

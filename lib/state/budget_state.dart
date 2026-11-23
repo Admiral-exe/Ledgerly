@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/models/budget_model.dart';
 import '../data/mock_data.dart';
+import 'auth_state.dart';
 
 class BudgetNotifier extends Notifier<MonthlyBudget> {
   static const List<String> availableMonths = [
@@ -13,17 +14,38 @@ class BudgetNotifier extends Notifier<MonthlyBudget> {
     'June 2026',
   ];
 
+  // Store user-isolated budgets across account switches
+  final Map<String, MonthlyBudget> _userBudgets = {
+    'user_01': MockData.initialMonthlyBudget,
+  };
+  String _activeUserId = 'user_01';
+
   @override
   MonthlyBudget build() {
+    final auth = ref.watch(authProvider);
+    final user = auth.user;
+
+    if (user != null) {
+      _activeUserId = user.id;
+      if (auth.isTestAccount) {
+        return _userBudgets['user_01'] ?? MockData.initialMonthlyBudget;
+      } else {
+        // New user starts with clean budget with ₹0 spent
+        return _userBudgets[user.id] ?? MockData.cleanMonthlyBudget;
+      }
+    }
+
     return MockData.initialMonthlyBudget;
   }
 
   void updateTotalBudget(double amount) {
     state = state.copyWith(totalBudget: amount);
+    _userBudgets[_activeUserId] = state;
   }
 
   void setMonth(String newMonth) {
     state = state.copyWith(month: newMonth);
+    _userBudgets[_activeUserId] = state;
   }
 
   void nextMonth() {
@@ -33,6 +55,7 @@ class BudgetNotifier extends Notifier<MonthlyBudget> {
     } else if (idx == -1) {
       state = state.copyWith(month: availableMonths.first);
     }
+    _userBudgets[_activeUserId] = state;
   }
 
   void previousMonth() {
@@ -40,6 +63,7 @@ class BudgetNotifier extends Notifier<MonthlyBudget> {
     if (idx > 0) {
       state = state.copyWith(month: availableMonths[idx - 1]);
     }
+    _userBudgets[_activeUserId] = state;
   }
 
   void updateCategoryAllocation(String categoryId, double newAllocation) {
@@ -51,6 +75,7 @@ class BudgetNotifier extends Notifier<MonthlyBudget> {
     }).toList();
 
     state = state.copyWith(categories: updatedList);
+    _userBudgets[_activeUserId] = state;
   }
 
   void addExpenseToCategory(String categoryName, double amount) {
@@ -76,6 +101,7 @@ class BudgetNotifier extends Notifier<MonthlyBudget> {
     }
 
     state = state.copyWith(categories: updatedList);
+    _userBudgets[_activeUserId] = state;
   }
 
   void removeExpenseFromCategory(String categoryName, double amount) {
@@ -93,6 +119,7 @@ class BudgetNotifier extends Notifier<MonthlyBudget> {
     }).toList();
 
     state = state.copyWith(categories: updatedList);
+    _userBudgets[_activeUserId] = state;
   }
 
   void autoApplyRecommendations() {
@@ -104,6 +131,7 @@ class BudgetNotifier extends Notifier<MonthlyBudget> {
       totalBudget: 55000.0,
       categories: updatedList,
     );
+    _userBudgets[_activeUserId] = state;
   }
 
   void addNewCategory({
@@ -128,6 +156,7 @@ class BudgetNotifier extends Notifier<MonthlyBudget> {
       totalBudget: state.totalBudget + allocated,
       categories: [...state.categories, newCat],
     );
+    _userBudgets[_activeUserId] = state;
   }
 }
 

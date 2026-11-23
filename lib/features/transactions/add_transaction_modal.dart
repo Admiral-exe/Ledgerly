@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/services/rag_ai_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
 import '../../core/utils/formatters.dart';
@@ -19,6 +20,9 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
   TransactionType _selectedType = TransactionType.expense;
   final _amountController = TextEditingController(text: '0.00');
   final _noteController = TextEditingController();
+  final _aiInputController = TextEditingController();
+  bool _isAiParsing = false;
+  bool _showAiInput = false;
   DateTime _selectedDate = DateTime.now();
   String _selectedPaymentMode = 'Bank Account';
   String _selectedTransferTo = 'Savings Account';
@@ -56,9 +60,69 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
 
   @override
   void dispose() {
+    _aiInputController.dispose();
     _amountController.dispose();
     _noteController.dispose();
     super.dispose();
+  }
+
+  Future<void> _handleAiFill(String text) async {
+    if (text.trim().isEmpty) return;
+    setState(() => _isAiParsing = true);
+    final budgetCatNames = ref.read(budgetProvider).categories.map((c) => c.name).toList();
+    try {
+      final res = await RAGAIService().parseNaturalTransaction(
+        text,
+        categories: budgetCatNames.isNotEmpty
+            ? budgetCatNames
+            : const ['Dining', 'Travel', 'Rent', 'Shopping', 'Bills', 'Fun', 'Health', 'Other'],
+      );
+      if (res.isAddAction) {
+        setState(() {
+          if (res.amount != null && res.amount! > 0) {
+            _amountController.text = res.amount!.toStringAsFixed(2);
+          }
+          if (res.type != null) {
+            if (res.type == 'income') {
+              _selectedType = TransactionType.income;
+            } else if (res.type == 'transfer') {
+              _selectedType = TransactionType.transfer;
+            } else {
+              _selectedType = TransactionType.expense;
+            }
+          }
+          if (res.category != null && res.category!.isNotEmpty) {
+            _selectedCategory = res.category!;
+          }
+          if (res.note != null && res.note!.isNotEmpty) {
+            _noteController.text = res.note!;
+          }
+        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('✨ Auto-filled: $_selectedCategory • ₹${_amountController.text}'),
+              backgroundColor: AppColors.primaryNavy,
+              behavior: SnackBarBehavior.floating,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(res.message.isNotEmpty ? res.message : 'Could not detect complete transaction info.'),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('AI Parse error: $e');
+    } finally {
+      if (mounted) setState(() => _isAiParsing = false);
+    }
   }
 
   void _saveTransaction() {
@@ -110,6 +174,17 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
     final isIncome = _selectedType == TransactionType.income;
     final isExpense = _selectedType == TransactionType.expense;
     final isTransfer = _selectedType == TransactionType.transfer;
+
+    final budgetCategories = ref.watch(budgetProvider).categories;
+    final customExpenseCats = budgetCategories.where((c) {
+      return !_expenseCategories.any((ec) => ec['name'].toString().toLowerCase() == c.name.toLowerCase());
+    }).map((c) => {
+      'name': c.name,
+      'icon': c.icon,
+      'color': c.color,
+      'bg': c.color.withOpacity(0.15),
+    }).toList();
+    final allExpenseCategories = [..._expenseCategories, ...customExpenseCats];
 
     return Container(
       height: MediaQuery.of(context).size.height * 0.92,
@@ -227,39 +302,158 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
 
                   const SizedBox(height: 16),
 
-                  // Import Excel Button (Figma feature)
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: BouncingButton(
-                      onPressed: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Excel Import: 24 bank statement rows imported successfully!'),
-                            backgroundColor: Color(0xFF047857),
-                            behavior: SnackBarBehavior.floating,
-                          ),
-                        );
-                      },
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                      color: const Color(0xFF047857),
-                      borderRadius: BorderRadius.circular(12),
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.table_view_outlined, color: Colors.white, size: 16),
-                          SizedBox(width: 6),
-                          Text(
-                            'Import Excel',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
+                  // Quick Actions Bar: Magic AI Fill & Import Excel
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      BouncingButton(
+                        onPressed: () => setState(() => _showAiInput = !_showAiInput),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                        color: _showAiInput ? AppColors.primaryNavy : const Color(0xFFEEF2FF),
+                        borderRadius: BorderRadius.circular(12),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.auto_awesome_rounded,
+                              color: _showAiInput ? Colors.white : const Color(0xFF4F46E5),
+                              size: 16,
                             ),
+                            const SizedBox(width: 6),
+                            Text(
+                              _showAiInput ? 'Close AI Fill' : '✨ Magic AI Fill',
+                              style: TextStyle(
+                                color: _showAiInput ? Colors.white : const Color(0xFF4F46E5),
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      BouncingButton(
+                        onPressed: () {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Excel Import: 24 bank statement rows imported successfully!'),
+                              backgroundColor: Color(0xFF047857),
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                        },
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                        color: const Color(0xFF047857),
+                        borderRadius: BorderRadius.circular(12),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.table_view_outlined, color: Colors.white, size: 16),
+                            SizedBox(width: 6),
+                            Text(
+                              'Import Excel',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  // Expandable AI input bar
+                  if (_showAiInput) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            const Color(0xFF6366F1).withOpacity(0.08),
+                            const Color(0xFFA855F7).withOpacity(0.08),
+                          ],
+                        ),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: const Color(0xFF6366F1).withOpacity(0.25)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Row(
+                            children: [
+                              Icon(Icons.auto_awesome, color: Color(0xFF6366F1), size: 15),
+                              SizedBox(width: 6),
+                              Text(
+                                'Describe in words & AI will autofill the form',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFF4338CA),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: TextField(
+                                  controller: _aiInputController,
+                                  decoration: InputDecoration(
+                                    hintText: 'e.g. 2000 dinner at kismat kathyawadi',
+                                    hintStyle: TextStyle(
+                                      fontSize: 12,
+                                      color: AppColors.textMuted.withOpacity(0.7),
+                                    ),
+                                    isDense: true,
+                                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                    filled: true,
+                                    fillColor: Colors.white,
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                      borderSide: const BorderSide(color: AppColors.borderLight),
+                                    ),
+                                    enabledBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                      borderSide: const BorderSide(color: AppColors.borderLight),
+                                    ),
+                                    focusedBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                      borderSide: const BorderSide(color: Color(0xFF6366F1)),
+                                    ),
+                                  ),
+                                  onSubmitted: _handleAiFill,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              BouncingButton(
+                                onPressed: _isAiParsing ? null : () => _handleAiFill(_aiInputController.text),
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                color: const Color(0xFF6366F1),
+                                borderRadius: BorderRadius.circular(10),
+                                child: _isAiParsing
+                                    ? const SizedBox(
+                                        width: 16,
+                                        height: 16,
+                                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                      )
+                                    : const Text(
+                                        'Fill',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.w700,
+                                          fontSize: 13,
+                                        ),
+                                      ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
                     ),
-                  ),
+                  ],
 
                   const SizedBox(height: 18),
 
@@ -363,11 +557,11 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
                         childAspectRatio: 0.88,
                       ),
                       itemCount: isExpense
-                          ? _expenseCategories.length
+                          ? allExpenseCategories.length
                           : _incomeCategories.length,
                       itemBuilder: (context, index) {
                         final cat = isExpense
-                            ? _expenseCategories[index]
+                            ? allExpenseCategories[index]
                             : _incomeCategories[index];
                         final isSelected = _selectedCategory == cat['name'];
 

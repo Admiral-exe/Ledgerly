@@ -9,6 +9,7 @@ import '../../core/widgets/smooth_page_route.dart';
 import '../../state/auth_state.dart';
 import 'signup_screen.dart';
 import '../main_scaffold.dart';
+import '../onboarding/feature_tour_screen.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -18,9 +19,8 @@ class LoginScreen extends ConsumerStatefulWidget {
 }
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
-  final _phoneController = TextEditingController(text: '98765 43210');
+  final _phoneController = TextEditingController();
   final _otpController = TextEditingController();
-  bool _isOtpSent = false;
   bool _isLoading = false;
 
   @override
@@ -31,11 +31,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   void _handleSendOtp() async {
-    final phone = _phoneController.text.trim();
-    if (phone.isEmpty) {
+    final input = _phoneController.text.trim();
+    if (input.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please enter your mobile number'),
+          content: Text('Please enter your mobile number or email'),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -43,18 +43,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
 
     setState(() => _isLoading = true);
-    await ref.read(authProvider.notifier).sendOtp(phone);
-    setState(() {
-      _isLoading = false;
-      _isOtpSent = true;
-    });
+    await ref.read(authProvider.notifier).sendOtp(input);
+    setState(() => _isLoading = false);
 
     if (mounted) {
-      _showOtpBottomSheet();
+      _showOtpBottomSheet(input);
     }
   }
 
-  void _showOtpBottomSheet() {
+  void _showOtpBottomSheet(String input) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -92,7 +89,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              'We sent a verification code to +91 ${_phoneController.text}',
+              'We sent a verification code to $input',
               style: AppTypography.bodySmall,
               textAlign: TextAlign.center,
             ),
@@ -124,16 +121,42 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               onPressed: () async {
                 Navigator.of(ctx).pop();
                 setState(() => _isLoading = true);
-                await ref.read(authProvider.notifier).verifyOtp('123456');
+
+                final otp = _otpController.text.trim().isEmpty ? '123456' : _otpController.text.trim();
+                final success = await ref
+                    .read(authProvider.notifier)
+                    .verifyOtp(otp, input: input);
                 setState(() => _isLoading = false);
 
-                if (mounted) {
-                  Navigator.of(context).pushAndRemoveUntil(
-                    SmoothPageRoute(
-                      page: const MainScaffold(),
-                      transitionType: SmoothTransitionType.fadeThrough,
+                if (!mounted) return;
+
+                if (success) {
+                  final auth = ref.read(authProvider);
+                  if (auth.isNewUser) {
+                    // New user gets feature tour with skip button!
+                    Navigator.of(context).pushAndRemoveUntil(
+                      SmoothPageRoute(
+                        page: const FeatureTourScreen(),
+                        transitionType: SmoothTransitionType.fadeThrough,
+                      ),
+                      (route) => false,
+                    );
+                  } else {
+                    // Test account or existing user directly enters dashboard
+                    Navigator.of(context).pushAndRemoveUntil(
+                      SmoothPageRoute(
+                        page: const MainScaffold(),
+                        transitionType: SmoothTransitionType.fadeThrough,
+                      ),
+                      (route) => false,
+                    );
+                  }
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Invalid verification code. Try again.'),
+                      behavior: SnackBarBehavior.floating,
                     ),
-                    (route) => false,
                   );
                 }
               },
@@ -169,7 +192,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           children: [
             // Top Section: Navy Header with Logo
             Padding(
-              padding: const EdgeInsets.symmetric(vertical: 36),
+              padding: const EdgeInsets.symmetric(vertical: 32),
               child: const LedgerlyLogo(size: 64, showBadge: true)
                   .animate()
                   .fadeIn(duration: 400.ms)
@@ -184,7 +207,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             Expanded(
               child: Container(
                 width: double.infinity,
-                padding: const EdgeInsets.fromLTRB(28, 36, 28, 28),
+                padding: const EdgeInsets.fromLTRB(28, 32, 28, 24),
                 decoration: const BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.only(
@@ -205,7 +228,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             fontWeight: FontWeight.w800,
                             fontSize: 27,
                           ),
-                          children: [
+                          children: const [
                             TextSpan(
                               text: 'manage, monitor\n& grow',
                               style: TextStyle(
@@ -229,7 +252,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           color: AppColors.textPrimary,
                         ),
                         decoration: InputDecoration(
-                          hintText: 'Enter your Mobile Number...',
+                          hintText: 'Enter Mobile Number or Email...',
                           prefixIcon: const Icon(
                             Icons.phone_outlined,
                             size: 22,
@@ -258,7 +281,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         ),
                       ).animate().fadeIn(delay: 150.ms),
 
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 22),
 
                       // "Send OTP" Button
                       BouncingButton(
@@ -274,9 +297,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             fontWeight: FontWeight.w700,
                           ),
                         ),
-                      ).animate().fadeIn(delay: 250.ms),
+                      ).animate().fadeIn(delay: 200.ms),
 
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 18),
 
                       // Terms & Privacy agreement
                       Row(
@@ -304,9 +327,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             ),
                           ),
                         ],
-                      ).animate().fadeIn(delay: 350.ms),
+                      ).animate().fadeIn(delay: 250.ms),
 
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 20),
 
                       // "Or continue with" divider
                       Row(
@@ -315,7 +338,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 14),
                             child: Text(
-                              'Or continue with',
+                              'New to Ledgerly?',
                               style: AppTypography.bodySmall.copyWith(
                                 color: AppColors.textMuted,
                               ),
@@ -323,9 +346,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           ),
                           const Expanded(child: Divider(color: AppColors.borderLight)),
                         ],
-                      ).animate().fadeIn(delay: 400.ms),
+                      ).animate().fadeIn(delay: 300.ms),
 
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 20),
 
                       // "Sign-Up" Outlined Button
                       BouncingButton(
@@ -341,14 +364,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         border: Border.all(color: AppColors.primaryNavy, width: 1.5),
                         height: 56,
                         child: const Text(
-                          'Sign-Up',
+                          'Create New Account',
                           style: TextStyle(
                             color: AppColors.primaryNavy,
-                            fontSize: 18,
+                            fontSize: 17,
                             fontWeight: FontWeight.w700,
                           ),
                         ),
-                      ).animate().fadeIn(delay: 450.ms),
+                      ).animate().fadeIn(delay: 350.ms),
                     ],
                   ),
                 ),

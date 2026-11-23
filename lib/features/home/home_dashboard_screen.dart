@@ -407,15 +407,37 @@ class HomeDashboardScreen extends ConsumerWidget {
                 ),
                 child: transactions.isEmpty
                     ? Padding(
-                        padding: const EdgeInsets.all(28.0),
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32.0),
                         child: Center(
                           child: Column(
                             children: [
-                              const Icon(Icons.receipt_long_outlined, size: 36, color: AppColors.textMuted),
-                              const SizedBox(height: 10),
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: const BoxDecoration(
+                                  color: AppColors.surfaceVariant,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(
+                                  Icons.receipt_long_outlined,
+                                  size: 32,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                              const SizedBox(height: 12),
                               Text(
                                 'No transactions recorded yet',
-                                style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondary),
+                                style: AppTypography.titleSmall.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Tap the "+" button below or use ✨ Magic AI to record your first expense.',
+                                textAlign: TextAlign.center,
+                                style: AppTypography.bodySmall.copyWith(
+                                  color: AppColors.textSecondary,
+                                  fontSize: 12,
+                                ),
                               ),
                             ],
                           ),
@@ -435,17 +457,19 @@ class HomeDashboardScreen extends ConsumerWidget {
                         itemBuilder: (context, index) {
                           final tx = transactions[index];
                           final isPositive = tx.isIncome;
-                          return ListTile(
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 6,
-                            ),
-                            onTap: () => _showTransactionDetailSheet(context, ref, tx),
-                            leading: Container(
-                              width: 44,
-                              height: 44,
-                              decoration: BoxDecoration(
-                                color: tx.categoryBgColor,
+                          return Material(
+                            color: Colors.transparent,
+                            child: ListTile(
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 6,
+                              ),
+                              onTap: () => _showTransactionDetailSheet(context, ref, tx),
+                              leading: Container(
+                                width: 44,
+                                height: 44,
+                                decoration: BoxDecoration(
+                                  color: tx.categoryBgColor,
                                 borderRadius: BorderRadius.circular(14),
                               ),
                               child: Icon(
@@ -474,8 +498,9 @@ class HomeDashboardScreen extends ConsumerWidget {
                                 fontSize: 16,
                               ),
                             ),
-                          );
-                        },
+                          ),
+                        );
+                      },
                       ),
               ).animate().fadeIn(delay: 350.ms),
             ],
